@@ -1,0 +1,62 @@
+<html>
+  <style>
+  img { width: 20px; height: 20px; }
+  </style>
+  <head>
+    <script src="https://unpkg.com/babel-standalone@6.26.0/babel.js"></script>
+    <script src="https://unpkg.com/rxjs@5.5.5/bundles/Rx.js"></script>
+  </head>
+  <body>
+    <div id='root'>
+      <header>
+        <h3>Suggestions</h3>
+        <a href='#' class='refresh'>Refresh</a>
+      </header>
+      <div>
+        <ul>
+          <li>
+            <img></img>
+            <a href='#' class='username'></a>
+            <a href='#'>X</a>
+          </li>
+          <li>
+            <img></img>
+            <a href='#' class='username'></a>
+            <a href='#'>X</a>
+          </li>
+          <li>
+            <img></img>
+            <a href='#' class='username'></a>
+            <a href='#'>X</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+    <script type="text/babel">
+      const { floor, random } = Math
+      const { Observable } = Rx
+      const fetchJson = url => fetch(url).then(res => res.json())
+
+      const refreshButton = document.querySelector('.refresh')
+      const requestStream = Observable.of('https://api.github.com/users')
+      const responseStream = requestStream.flatMap(reqUrl => Rx.Observable.fromPromise(fetchJson(reqUrl)))
+      const createSuggestionStream = stream => stream.map(users => users[floor(random() * users.length)])
+      const s1stream = createSuggestionStream(responseStream)
+      const s2stream = createSuggestionStream(responseStream)
+      const s3stream = createSuggestionStream(responseStream)
+      s1stream.subscribe(user => renderSuggestion(user, 'li:nth-child(1)'))
+      s2stream.subscribe(user => renderSuggestion(user, 'li:nth-child(2)'))
+      s3stream.subscribe(user => renderSuggestion(user, 'li:nth-child(3)'))
+      
+      function renderSuggestion (user, selector) {
+        const domEl = document.querySelector(selector)
+        const link = domEl.querySelector('.username')
+        link.href = user.html_url
+        link.textContent = user.login
+        const img = domEl.querySelector('img')
+        img.src = user.avatar_url
+      }
+
+    </script>
+  </body>
+</html>
