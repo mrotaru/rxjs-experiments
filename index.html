@@ -43,16 +43,15 @@
       const refreshClickStream = Observable.fromEvent(refreshButton, 'click')
 
       const requestStream = refreshClickStream
-        .map(ev => {
-          const randomOffset = floor(random() * 500)
-          return 'https://api.github.com/users?since=' + randomOffset
-        })
+        .map(() => `https://api.github.com/users?since=${floor(random() * 500)}`)
 
       const responseStream = startupRequestStream.merge(requestStream)
-        .flatMap(reqUrl => Observable.fromPromise(fetchJson(reqUrl)))
+        .mergeMap(reqUrl => Observable.fromPromise(fetchJson(reqUrl)))
 
-      const createSuggestionStream = stream =>
-        stream.map(users => users[floor(random() * users.length)])
+      const createSuggestionStream = stream => stream
+        .map(users => users[floor(random() * users.length)])
+        .startWith(null)
+        .merge(refreshClickStream.map(() => null))
 
       const s1stream = createSuggestionStream(responseStream)
       const s2stream = createSuggestionStream(responseStream)
@@ -63,6 +62,11 @@
       
       function renderSuggestion (user, selector) {
         const domEl = document.querySelector(selector)
+        if (!user) {
+          domEl.style.visibility = 'hidden'
+          return
+        }
+        domEl.style.visibility = 'visible'
         const link = domEl.querySelector('.username')
         link.href = user.html_url
         link.textContent = user.login
