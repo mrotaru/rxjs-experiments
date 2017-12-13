@@ -14,20 +14,20 @@
       </header>
       <div>
         <ul>
-          <li>
+          <li class='user1'>
             <img></img>
             <a href='#' class='username'></a>
-            <a href='#'>X</a>
+            <a href='#' class='remove'>X</a>
           </li>
-          <li>
+          <li class='user2'>
             <img></img>
             <a href='#' class='username'></a>
-            <a href='#'>X</a>
+            <a href='#' class='remove'>X</a>
           </li>
-          <li>
+          <li class='user3'>
             <img></img>
             <a href='#' class='username'></a>
-            <a href='#'>X</a>
+            <a href='#' class='remove'>X</a>
           </li>
         </ul>
       </div>
@@ -36,32 +36,41 @@
       const { floor, random } = Math
       const { Observable } = Rx
       const fetchJson = url => fetch(url).then(res => res.json())
-      const refreshButton = document.querySelector('.refresh')
+      const $ = selector => document.querySelector(selector)
+      const refreshButton = $('.refresh')
 
       const startupRequestStream = Observable.of('https://api.github.com/users')
 
       const refreshClickStream = Observable.fromEvent(refreshButton, 'click')
+      const closeClickStream1 = Observable.fromEvent($('.user1 .remove'), 'click')
+      const closeClickStream2 = Observable.fromEvent($('.user2 .remove'), 'click')
+      const closeClickStream3 = Observable.fromEvent($('.user3 .remove'), 'click')
 
       const requestStream = refreshClickStream
         .map(() => `https://api.github.com/users?since=${floor(random() * 500)}`)
 
-      const responseStream = startupRequestStream.merge(requestStream)
+      const responseStream = startupRequestStream
+        .merge(requestStream)
         .mergeMap(reqUrl => Observable.fromPromise(fetchJson(reqUrl)))
+        .share()
 
-      const createSuggestionStream = stream => stream
+      const createSuggestionStream = (stream, closeClickStream) => stream
         .map(users => users[floor(random() * users.length)])
         .startWith(null)
         .merge(refreshClickStream.map(() => null))
+        .merge(closeClickStream.withLatestFrom(stream, (ev, users) =>
+          users[floor(random() * users.length)]
+        ))
 
-      const s1stream = createSuggestionStream(responseStream)
-      const s2stream = createSuggestionStream(responseStream)
-      const s3stream = createSuggestionStream(responseStream)
-      s1stream.subscribe(user => renderSuggestion(user, 'li:nth-child(1)'))
-      s2stream.subscribe(user => renderSuggestion(user, 'li:nth-child(2)'))
-      s3stream.subscribe(user => renderSuggestion(user, 'li:nth-child(3)'))
+      const s1stream = createSuggestionStream(responseStream, closeClickStream1)
+      const s2stream = createSuggestionStream(responseStream, closeClickStream2)
+      const s3stream = createSuggestionStream(responseStream, closeClickStream3)
+      s1stream.subscribe(user => renderSuggestion(user, '.user1'))
+      s2stream.subscribe(user => renderSuggestion(user, '.user2'))
+      s3stream.subscribe(user => renderSuggestion(user, '.user3'))
       
       function renderSuggestion (user, selector) {
-        const domEl = document.querySelector(selector)
+        const domEl = $(selector)
         if (!user) {
           domEl.style.visibility = 'hidden'
           return
