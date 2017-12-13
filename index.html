@@ -36,11 +36,24 @@
       const { floor, random } = Math
       const { Observable } = Rx
       const fetchJson = url => fetch(url).then(res => res.json())
-
       const refreshButton = document.querySelector('.refresh')
-      const requestStream = Observable.of('https://api.github.com/users')
-      const responseStream = requestStream.flatMap(reqUrl => Rx.Observable.fromPromise(fetchJson(reqUrl)))
-      const createSuggestionStream = stream => stream.map(users => users[floor(random() * users.length)])
+
+      const startupRequestStream = Observable.of('https://api.github.com/users')
+
+      const refreshClickStream = Observable.fromEvent(refreshButton, 'click')
+
+      const requestStream = refreshClickStream
+        .map(ev => {
+          const randomOffset = floor(random() * 500)
+          return 'https://api.github.com/users?since=' + randomOffset
+        })
+
+      const responseStream = startupRequestStream.merge(requestStream)
+        .flatMap(reqUrl => Observable.fromPromise(fetchJson(reqUrl)))
+
+      const createSuggestionStream = stream =>
+        stream.map(users => users[floor(random() * users.length)])
+
       const s1stream = createSuggestionStream(responseStream)
       const s2stream = createSuggestionStream(responseStream)
       const s3stream = createSuggestionStream(responseStream)
